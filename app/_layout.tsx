@@ -30,6 +30,7 @@ export default function RootLayout() {
 					name="(tabs)"
 					options={{ headerShown: false, statusBarColor: "black" }}
 				/>
-			</Stack></AuthProvider>
+			</Stack>
+		</AuthProvider>
 	);
 }

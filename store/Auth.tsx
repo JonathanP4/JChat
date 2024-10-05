@@ -1,61 +1,102 @@
 import { createContext, ReactNode, useContext } from "react";
-import { useState, useEffect } from 'react';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { useState, useEffect } from "react";
+import { GoogleSignin, User } from "@react-native-google-signin/google-signin";
+import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import database from "@react-native-firebase/database";
+import { User as FirebaseUser } from "firebase/auth";
 
 GoogleSignin.configure({
-    webClientId: '969067816085-b5486tom963kumvjeglefat537f9lh4m.apps.googleusercontent.com',
+	webClientId:
+		"969067816085-b5486tom963kumvjeglefat537f9lh4m.apps.googleusercontent.com",
 });
 
 type Context = {
-    onGoogleButtonPress: () => Promise<FirebaseAuthTypes.UserCredential | undefined>
-    logout: () => Promise<void>
-    user: any
-}
+	onGoogleButtonPress: () => Promise<
+		FirebaseAuthTypes.UserCredential | undefined
+	>;
+	logout: () => Promise<void>;
+	user: FirebaseUser | null;
+};
 
-const authContext = createContext<any>(null)
+const authContext = createContext<any>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    // Set an initializing state whilst Firebase connects
-    const [initializing, setInitializing] = useState(true);
-    const [user, setUser] = useState();
+	const [user, setUser] = useState<FirebaseUser | null>();
 
-    // Handle user state changes
-    function onAuthStateChanged(user: any) {
-        setUser(user);
-        if (initializing) setInitializing(false);
-    }
+	function writeUserOnDb(user: FirebaseUser) {
+		database().ref(`users/${user.uid}`).set({
+			email: user.email,
+			id: user.uid,
+			profile_picture: user.photoURL,
+			username: user.displayName,
+		});
+	}
 
-    useEffect(() => {
-        const subscriber = auth().onAuthStateChanged(onAuthStateChanged);
-        return subscriber; // unsubscribe on unmount
-    }, []);
+	// Handle user state changes
+	function onAuthStateChanged(user: any) {
+		if (user) {
+			setUser(user);
+		} else {
+			setUser(null);
+		}
+	}
 
-    if (initializing) return null;
+	useEffect(() => {
+		if (!user) return;
+		database()
+			.ref(`/users/${user.uid}`)
+			.once("value", (snap) => {
+				if (!snap.exists()) writeUserOnDb(user);
+			});
+	}, [user]);
 
-    async function onGoogleButtonPress() {
-        // Check if your device supports Google Play
-        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-        // Get the users ID token
-        const { data } = await GoogleSignin.signIn();
-        if (data) {
-            // Create a Google credential with the token
-            const googleCredential = auth.GoogleAuthProvider.credential(data.idToken);
+	useEffect(() => {
+		const subscriber = auth().onAuthStateChanged(onAuthStateChanged);
+		return subscriber; // unsubscribe on unmount
+	}, []);
 
-            // Sign-in the user with the credential
-            return auth().signInWithCredential(googleCredential);
-        }
-    }
+	async function onGoogleButtonPress() {
+		// Check if your device supports Google Play
+		await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+		// Get the users ID token
+		const { data } = await GoogleSignin.signIn();
+		if (data) {
+			// Create a Google credential with the token
+			const googleCredential = auth.GoogleAuthProvider.credential(data.idToken);
 
-    async function logout() {
-        await auth().signOut()
-    }
+			// Sign-in the user with the credential
+			return auth().signInWithCredential(googleCredential);
+		}
+	}
 
-    return (
-        <authContext.Provider value={{ onGoogleButtonPress, logout, user }}>
-            {children}
-        </authContext.Provider>
-    );
+	async function logout() {
+		await auth().signOut();
+	}
+
+	if (!user) {
+		return (
+			<View className="flex-1 bg-slate-900 items-center justify-center">
+				<Text className="text-2xl font-bold text-white">
+					Login to use the app
+				</Text>
+				<Pressable
+					className="mt-6 flex-row items-center border border-white px-6 py-2 rounded-md"
+					onPress={onGoogleButtonPress}
+				>
+					<Text className="text-white text-base">Sign in with Google</Text>
+					<Ionicons color={"white"} size={20} name="logo-google" />
+				</Pressable>
+			</View>
+		);
+	}
+
+	return (
+		<authContext.Provider value={{ onGoogleButtonPress, logout, user }}>
+			{children}
+		</authContext.Provider>
+	);
 }
 
-export const Auth = useContext(authContext) as Context
+export const Auth = () => useContext(authContext) as Context;

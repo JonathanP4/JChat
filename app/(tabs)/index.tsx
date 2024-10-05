@@ -1,29 +1,46 @@
 import { Contact } from "@/components/Contact";
 import { useEffect, useState } from "react";
-import { FlatList, View } from "react-native";
-import database from '@react-native-firebase/database'
+import { FlatList, Text, View } from "react-native";
+import database from "@react-native-firebase/database";
+import { Auth } from "@/store/Auth";
 
 export default function HomeScreen() {
-	const [users, setUsers] = useState<User[]>([])
+	const [users, setUsers] = useState<User[]>([]);
+	const { user } = Auth();
 
 	useEffect(() => {
+		if (!user) return;
 		database()
-			.ref('/users')
-			.on('value', (snapshot) => {
+			.ref(`/users/${user.uid}/contacts`)
+			.on("value", (snapshot) => {
 				if (snapshot.exists()) {
-					const usersData = snapshot.val()
-					const data: User[] = []
+					const usersData = snapshot.val();
+					const data: User[] = [];
 
-					Object.keys(usersData).forEach(k => data.push(usersData[k]))
+					Object.keys(usersData).forEach((k) => {
+						data.push(usersData[k]);
+					});
 
-					setUsers(data)
+					setUsers(data);
+				} else {
+					setUsers([]);
 				}
-			})
-	}, [])
+			});
+	}, []);
 
 	return (
 		<View className="flex-1 bg-slate-900">
-			<FlatList data={users} renderItem={({ item }) => <Contact data={item} />} />
+			{!!users.length ? (
+				<FlatList
+					data={users}
+					keyExtractor={(i) => i.id}
+					renderItem={({ item }) => <Contact data={item} />}
+				/>
+			) : (
+				<Text className="text-slate-400 p-4 text-lg">
+					You have no contacts yet.
+				</Text>
+			)}
 		</View>
 	);
 }
