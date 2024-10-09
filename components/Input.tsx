@@ -1,5 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Pressable, TextInput, View } from "react-native";
+import { TextInput } from "react-native";
 
 type Props = {
 	changeText: (t: string) => void;

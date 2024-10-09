@@ -1,23 +1,29 @@
 import { createContext, ReactNode, useContext } from "react";
 import { useState, useEffect } from "react";
-import { GoogleSignin, User } from "@react-native-google-signin/google-signin";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import database from "@react-native-firebase/database";
 import { User as FirebaseUser } from "firebase/auth";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 
 GoogleSignin.configure({
 	webClientId:
 		"969067816085-b5486tom963kumvjeglefat537f9lh4m.apps.googleusercontent.com",
 });
 
+interface JChatUser extends FirebaseUser {
+	expoPushToken: string;
+}
+
 type Context = {
 	onGoogleButtonPress: () => Promise<
 		FirebaseAuthTypes.UserCredential | undefined
 	>;
 	logout: () => Promise<void>;
-	user: FirebaseUser | null;
+	user: JChatUser | null;
 };
 
 const authContext = createContext<any>(null);
@@ -25,12 +31,19 @@ const authContext = createContext<any>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const [user, setUser] = useState<FirebaseUser | null>();
 
-	function writeUserOnDb(user: FirebaseUser) {
+	async function writeUserOnDb(user: FirebaseUser) {
+		const pushTokenString = (
+			await Notifications.getExpoPushTokenAsync({
+				projectId: Constants.expoConfig!.extra!.eas.projectId,
+			})
+		).data;
+
 		database().ref(`users/${user.uid}`).set({
 			email: user.email,
 			id: user.uid,
 			profile_picture: user.photoURL,
 			username: user.displayName,
+			expo_push_token: pushTokenString,
 		});
 	}
 

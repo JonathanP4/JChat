@@ -50,28 +50,31 @@ export default function Profile() {
 					className="rounded-full"
 				/>
 			)}
-			<Text className="text-slate-300 text-2xl font-bold">John404</Text>
+			<Text className="text-slate-300 text-2xl font-bold">
+				{user?.displayName}
+			</Text>
 			<View className="mt-4 space-y-2">
 				<View className="flex-row items-center">
 					<Text className="text-slate-300 font-bold text-base">Email: </Text>
-					<Text className="text-slate-400 text-base">
-						jonathanpetersen2016@gmail.com
-					</Text>
+					<Text className="text-slate-400 text-base">{user?.email}</Text>
 					<Pressable className="ml-2" onPress={copyEmail}>
 						<Ionicons name="copy-outline" color={"#94a3b8"} size={20} />
 					</Pressable>
 				</View>
 				<View className="flex-row items-center">
 					<Text className="text-slate-300 font-bold text-base">ID: </Text>
-					<Text className="text-slate-400 text-base">Hjk9las782a</Text>
+					<Text className="text-slate-400 text-base">{user?.uid}</Text>
 					<Pressable className="ml-2" onPress={copyID}>
 						<Ionicons name="copy-outline" color={"#94a3b8"} size={20} />
 					</Pressable>
 				</View>
-				<Pressable className="ml-2" onPress={logout}>
-					<Text>Logout</Text>
-				</Pressable>
 			</View>
+			<Pressable
+				className="rounded self-start px-4 py-1 bg-rose-500/70 absolute top-4 right-4"
+				onPress={logout}
+			>
+				<Text className="text-lg font-bold text-white">Logout</Text>
+			</Pressable>
 		</View>
 	);
 }
