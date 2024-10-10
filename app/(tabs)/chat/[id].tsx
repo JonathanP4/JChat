@@ -89,7 +89,13 @@ export default function ChatPage() {
 	const navigation = useNavigation();
 
 	const [contact, setContact] = useState<User>();
-	const [messages, setMessages] = useState<any>([]);
+
+	const [contactMessages, setContactMessages] = useState<Message[] | null>(
+		null
+	);
+	const [userMessages, setUserMessages] = useState<Message[] | null>(null);
+	const [messages, setMessages] = useState<Message[]>([]);
+
 	const [text, setText] = useState("");
 	const [contactExpoPushToken, setContactExpoPushToken] = useState("");
 
@@ -140,6 +146,7 @@ export default function ChatPage() {
 
 	useEffect(() => {
 		if (!user) return;
+
 		database()
 			.ref(`users/${id}`)
 			.once("value", (snap) => {
@@ -148,22 +155,46 @@ export default function ChatPage() {
 					setContactExpoPushToken(value.expo_push_token);
 				}
 			});
+
+		database()
+			.ref(`/users/${id}/chats/${user.uid}`)
+			.on("value", (snap) => {
+				if (!snap.exists()) return setContactMessages([]);
+
+				const messages = snap.val();
+				const data = Object.keys(messages).map((key) => {
+					messages[key].id = key;
+					return messages[key];
+				});
+
+				setContactMessages(data);
+			});
+
 		database()
 			.ref(`/users/${user.uid}/chats/${id}`)
-			.orderByValue()
 			.on("value", (snap) => {
-				if (!snap.exists()) return setMessages([]);
+				if (!snap.exists()) return setUserMessages([]);
 
-				const msgs = snap.val();
-				const data: Message[] = [];
-
-				Object.keys(msgs).map((k) => {
-					msgs[k].id = k;
-					data.push(msgs[k]);
+				const messages = snap.val();
+				const data = Object.keys(messages).map((key) => {
+					messages[key].id = key;
+					return messages[key];
 				});
-				setMessages(data.sort((a, b) => (a.datetime < b.datetime ? -1 : 0)));
+
+				setUserMessages(data);
 			});
 	}, []);
+
+	useEffect(() => {
+		if (!Array.isArray(contactMessages) || !Array.isArray(userMessages)) return;
+
+		const allMessages = [...contactMessages, ...userMessages];
+		setMessages(
+			allMessages.sort((a, b) =>
+				a.datetime > b.datetime ? 1 : a.datetime < b.datetime ? -1 : 0
+			)
+		);
+	}, [userMessages, contactMessages]);
 
 	const changeText = (t: string) => {
 		setText(t);
@@ -178,14 +209,9 @@ export default function ChatPage() {
 		};
 		if (!user) return;
 
-		const key = database().ref(`users/${user.uid}/chats/${id}`).push().key;
-
 		database()
-			.ref(`users/${user.uid}/chats/${id}/${key}`)
-			.set({ message: text, datetime, ...userData });
-
-		database()
-			.ref(`users/${id}/chats/${user.uid}/${key}`)
+			.ref(`users/${user.uid}/chats/${id}`)
+			.push()
 			.set({ message: text, datetime, ...userData });
 
 		await sendPushNotification(contactExpoPushToken, user!.displayName!, text);

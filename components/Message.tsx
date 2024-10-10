@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import database from "@react-native-firebase/database";
+import { Href, Link } from "expo-router";
 
 type Props = {
 	message: Message;
@@ -21,16 +22,14 @@ export function Message({ message, contactID }: Props) {
 	}, []);
 
 	const deleteMessage = () => {
+		if (!user) return;
 		database()
-			.ref(`/users/${user?.uid}/chats/${contactID}/${message.id}`)
-			.set(null);
-		database()
-			.ref(`/users/${contactID}/chats/${user?.uid}/${message.id}`)
+			.ref(`/users/${user.uid}/chats/${contactID}/${message.id}`)
 			.set(null);
 	};
 
 	return (
-		<View className="p-2 flex-row space-x-2 border-b border-slate-700 mb-2 min-h-[70px]">
+		<View className="p-2 flex-row space-x-2 border-b border-slate-700 mb-2 min-h-[75px]">
 			<Image
 				className="rounded-full"
 				width={40}
@@ -47,7 +46,19 @@ export function Message({ message, contactID }: Props) {
 					)}
 				</View>
 				<View className="space-x-1">
-					<Text className="text-white">{message.message}</Text>
+					{message.message.match(/[http|https]:\/\/\.*/gi) ? (
+						<Link
+							className="text-blue-500 underline"
+							href={message.message as Href}
+						>
+							{message.message}
+						</Link>
+					) : (
+						<Text selectable className="text-white">
+							{message.message}
+						</Text>
+					)}
+
 					<Text className="text-slate-400 text-xs text-right">{time}</Text>
 				</View>
 			</View>
