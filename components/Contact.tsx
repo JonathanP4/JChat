@@ -22,14 +22,13 @@ export function Contact({ data }: { data: User }) {
 							setIsContact(true);
 						}
 					});
-				} else {
-					setIsContact(false);
 				}
 			});
 	}, []);
 
 	const addOrRemoveContact = () => {
 		setIsContact((s) => !s);
+
 		if (!user) return;
 		database()
 			.ref(`users/${user.uid}/contacts/${data.id}`)
@@ -37,7 +36,7 @@ export function Contact({ data }: { data: User }) {
 	};
 
 	const goToChat = () => {
-		router.push(`/(tabs)/chat/${data.id}`);
+		router.replace(`/(tabs)/chat/${data.id}`);
 	};
 
 	return (

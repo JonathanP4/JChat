@@ -1,14 +1,16 @@
-import { FlatList, Text, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { Input } from "@/components/Input";
 import { useEffect, useState } from "react";
 import database from "@react-native-firebase/database";
 import { Contact } from "@/components/Contact";
+import { Auth } from "@/store/Auth";
 
 export default function SerachContacts() {
-	const [query, setQuery] = useState("");
 	const [results, setResults] = useState<User[]>([]);
+	const [query, setQuery] = useState("");
+	const { user } = Auth();
 
-	const changeText = (txt: string) => {
+	const changeQuery = (txt: string) => {
 		setQuery(txt);
 	};
 
@@ -20,6 +22,7 @@ export default function SerachContacts() {
 				const users = snap.val();
 				const res: User[] = [];
 				Object.keys(users).forEach((k) => {
+					if (users[k].id === user?.uid) return;
 					if (
 						users[k].username.includes(query) ||
 						users[k].id === query ||
@@ -38,7 +41,7 @@ export default function SerachContacts() {
 					styles="rounded"
 					value={query}
 					placeholder="Search by username, id or email"
-					changeText={changeText}
+					changeText={changeQuery}
 				/>
 			</View>
 

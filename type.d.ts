@@ -9,6 +9,7 @@ type User = {
 type Message = {
 	datetime: string;
 	message: string;
+	userID: string;
 	id: string;
 	name: string;
 	photo: string;

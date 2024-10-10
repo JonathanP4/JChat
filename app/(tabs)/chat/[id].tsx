@@ -2,9 +2,9 @@ import { Auth } from "@/store/Auth";
 import { Input } from "@/components/Input";
 import { Message } from "@/components/Message";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, View, Platform } from "react-native";
+import { FlatList, Pressable, View, Platform, Image } from "react-native";
 import database from "@react-native-firebase/database";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -86,11 +86,34 @@ export default function ChatPage() {
 	const { id } = useLocalSearchParams();
 	const { user } = Auth();
 
+	const navigation = useNavigation();
+
+	const [contact, setContact] = useState<User>();
 	const [messages, setMessages] = useState<any>([]);
 	const [text, setText] = useState("");
 	const [contactExpoPushToken, setContactExpoPushToken] = useState("");
+
 	const notificationListener = useRef<Notifications.Subscription>();
 	const responseListener = useRef<Notifications.Subscription>();
+
+	useEffect(() => {
+		database()
+			.ref(`/users/${id}`)
+			.once("value", (snap) => {
+				if (snap.exists()) setContact(snap.val());
+			});
+		navigation.setOptions({
+			headerTitle: contact?.username || "",
+			headerLeft: () => (
+				<Image
+					className="rounded-full ml-3 -mr-1"
+					width={35}
+					height={35}
+					source={{ uri: contact?.profile_picture || "https://" }}
+				/>
+			),
+		});
+	}, [navigation, contact]);
 
 	useEffect(() => {
 		registerForPushNotificationsAsync();
@@ -122,7 +145,6 @@ export default function ChatPage() {
 			.once("value", (snap) => {
 				if (snap.exists()) {
 					const value = snap.val() as User;
-
 					setContactExpoPushToken(value.expo_push_token);
 				}
 			});
@@ -135,7 +157,10 @@ export default function ChatPage() {
 				const msgs = snap.val();
 				const data: Message[] = [];
 
-				Object.keys(msgs).map((k) => data.push(msgs[k]));
+				Object.keys(msgs).map((k) => {
+					msgs[k].id = k;
+					data.push(msgs[k]);
+				});
 				setMessages(data.sort((a, b) => (a.datetime < b.datetime ? -1 : 0)));
 			});
 	}, []);
@@ -147,22 +172,23 @@ export default function ChatPage() {
 	const sendMsg = async () => {
 		const datetime = new Date().toISOString();
 		const userData = {
-			id: user?.uid,
+			userID: user?.uid,
 			name: user?.displayName,
 			photo: user?.photoURL,
 		};
 		if (!user) return;
+
+		const key = database().ref(`users/${user.uid}/chats/${id}`).push().key;
+
 		database()
-			.ref(`users/${user.uid}/chats/${id}`)
-			.push()
+			.ref(`users/${user.uid}/chats/${id}/${key}`)
 			.set({ message: text, datetime, ...userData });
+
 		database()
-			.ref(`users/${id}/chats/${user.uid}`)
-			.push()
+			.ref(`users/${id}/chats/${user.uid}/${key}`)
 			.set({ message: text, datetime, ...userData });
 
 		await sendPushNotification(contactExpoPushToken, user!.displayName!, text);
-
 		setText("");
 	};
 
@@ -172,7 +198,7 @@ export default function ChatPage() {
 				className="flex-1"
 				data={messages}
 				keyExtractor={(item, idx) => `${item.id}${idx}`}
-				renderItem={({ item }) => <Message message={item} />}
+				renderItem={({ item }) => <Message contactID={id} message={item} />}
 			/>
 
 			<View className="flex-row items-center">

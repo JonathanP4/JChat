@@ -30,6 +30,7 @@ export default function TabLayout() {
 					name="add"
 					options={{
 						title: "Add contact",
+						unmountOnBlur: true,
 						tabBarIcon: ({ color }) => (
 							<Ionicons name="person-add-outline" color={color} size={20} />
 						),
@@ -48,6 +49,10 @@ export default function TabLayout() {
 				<Tabs.Screen
 					name="chat/[id]"
 					options={{
+						headerShown: true,
+						headerStyle: { backgroundColor: "#334155" },
+						headerTitleStyle: { color: "white" },
+						unmountOnBlur: true,
 						href: null,
 					}}
 				/>
