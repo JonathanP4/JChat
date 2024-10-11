@@ -13,6 +13,7 @@ type Message = {
 	id: string;
 	name: string;
 	photo: string;
+	replyTo?: { user: string; message: string };
 };
 
 interface FirebaseData {

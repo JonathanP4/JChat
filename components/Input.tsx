@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { TextInput } from "react-native";
 
 type Props = {
@@ -7,9 +8,13 @@ type Props = {
 	styles?: string;
 };
 
-export function Input({ changeText, placeholder, styles, value }: Props) {
+export const Input = forwardRef(function Input(
+	{ changeText, placeholder, styles, value }: Props,
+	ref
+) {
 	return (
 		<TextInput
+			ref={ref as any}
 			placeholderTextColor={"#94a3b8"}
 			placeholder={placeholder || ""}
 			onChangeText={(txt) => changeText(txt)}
@@ -19,4 +24,4 @@ export function Input({ changeText, placeholder, styles, value }: Props) {
 			} text-slate-300 py-1 px-2 border border-slate-600 bg-slate-800`}
 		/>
 	);
-}
+});

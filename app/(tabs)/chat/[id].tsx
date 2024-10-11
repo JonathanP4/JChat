@@ -4,7 +4,7 @@ import { Message } from "@/components/Message";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, View, Platform, Image } from "react-native";
+import { FlatList, Pressable, View, Platform, Image, Text } from "react-native";
 import database from "@react-native-firebase/database";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -89,18 +89,20 @@ export default function ChatPage() {
 	const navigation = useNavigation();
 
 	const [contact, setContact] = useState<User>();
-
 	const [contactMessages, setContactMessages] = useState<Message[] | null>(
 		null
 	);
 	const [userMessages, setUserMessages] = useState<Message[] | null>(null);
 	const [messages, setMessages] = useState<Message[]>([]);
-
 	const [text, setText] = useState("");
+	const [replying, setReplying] = useState<Message | null>(null);
+
 	const [contactExpoPushToken, setContactExpoPushToken] = useState("");
 
 	const notificationListener = useRef<Notifications.Subscription>();
 	const responseListener = useRef<Notifications.Subscription>();
+
+	const inputRef = useRef(null);
 
 	useEffect(() => {
 		database()
@@ -200,6 +202,11 @@ export default function ChatPage() {
 		setText(t);
 	};
 
+	const cancelReply = () => {
+		if (inputRef.current) (inputRef.current as HTMLElement).blur();
+		setReplying(null);
+	};
+
 	const sendMsg = async () => {
 		const datetime = new Date().toISOString();
 		const userData = {
@@ -209,34 +216,74 @@ export default function ChatPage() {
 		};
 		if (!user) return;
 
-		database()
-			.ref(`users/${user.uid}/chats/${id}`)
-			.push()
-			.set({ message: text, datetime, ...userData });
+		if (replying) {
+			database()
+				.ref(`users/${user.uid}/chats/${id}`)
+				.push()
+				.set({
+					message: text,
+					datetime,
+					...userData,
+					replyTo: { user: replying.name, message: replying.message },
+				});
+			cancelReply();
+		} else {
+			database()
+				.ref(`users/${user.uid}/chats/${id}`)
+				.push()
+				.set({ message: text, datetime, ...userData });
+		}
 
 		await sendPushNotification(contactExpoPushToken, user!.displayName!, text);
 		setText("");
 	};
 
+	const replyMsg = (msg: Message) => {
+		if (inputRef.current) (inputRef.current as HTMLElement).focus();
+		setReplying(msg);
+	};
+
 	return (
 		<View className="flex-1 bg-slate-900 p-2">
 			<FlatList
+				inverted
 				className="flex-1"
-				data={messages}
-				keyExtractor={(item, idx) => `${item.id}${idx}`}
-				renderItem={({ item }) => <Message contactID={id} message={item} />}
+				data={[...messages].reverse()}
+				keyExtractor={(item) => item.id}
+				renderItem={({ item }) => (
+					<Message reply={replyMsg} contactID={id} message={item} />
+				)}
 			/>
 
-			<View className="flex-row items-center">
-				<Input
-					styles="rounded-l ml-1 flex-1"
-					placeholder="Write a message..."
-					value={text}
-					changeText={changeText}
-				/>
-				<Pressable onPress={sendMsg} className="bg-slate-600 p-2 rounded-r">
-					<Ionicons name="send" size={20} color={"white"} />
-				</Pressable>
+			<View>
+				{!!replying && (
+					<View className="self-start flex-row">
+						<Text
+							numberOfLines={1}
+							className="text-white bg-slate-600 rounded-full py-1 px-4 flex-1"
+						>
+							Replying to: "{replying.message}"
+						</Text>
+						<Pressable
+							onPress={cancelReply}
+							className="bg-red-600 rounded-full py-1 px-4 pl-12 -ml-10 -z-10 mr-10"
+						>
+							<Text className="text-white">Cancel</Text>
+						</Pressable>
+					</View>
+				)}
+				<View className="flex-row items-center">
+					<Input
+						ref={inputRef}
+						styles="rounded-l ml-1 flex-1"
+						placeholder="Write a message..."
+						value={text}
+						changeText={changeText}
+					/>
+					<Pressable onPress={sendMsg} className="bg-slate-600 p-2 rounded-r">
+						<Ionicons name="send" size={20} color={"white"} />
+					</Pressable>
+				</View>
 			</View>
 		</View>
 	);

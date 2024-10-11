@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import { FlatList, Text, View } from "react-native";
 import database from "@react-native-firebase/database";
 import { Auth } from "@/store/Auth";
+import { SplashScreen } from "expo-router";
 
 export default function HomeScreen() {
 	const [users, setUsers] = useState<User[]>([]);
+	const [loaded, setLoaded] = useState(false);
 	const { user } = Auth();
 
 	useEffect(() => {
@@ -25,8 +27,15 @@ export default function HomeScreen() {
 				} else {
 					setUsers([]);
 				}
+				setLoaded(true);
 			});
 	}, []);
+
+	useEffect(() => {
+		if (loaded) {
+			SplashScreen.hideAsync();
+		}
+	}, [loaded]);
 
 	return (
 		<View className="flex-1 bg-slate-900">
