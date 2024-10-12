@@ -2,13 +2,23 @@ import { Auth } from "@/store/Auth";
 import { Input } from "@/components/Input";
 import { Message } from "@/components/Message";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, View, Platform, Image, Text } from "react-native";
+import {
+	FlatList,
+	Pressable,
+	View,
+	Platform,
+	Image,
+	Text,
+	Keyboard,
+} from "react-native";
 import database from "@react-native-firebase/database";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import storage from "@react-native-firebase/storage";
 
 Notifications.setNotificationHandler({
 	handleNotification: async () => ({
@@ -96,13 +106,13 @@ export default function ChatPage() {
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [text, setText] = useState("");
 	const [replying, setReplying] = useState<Message | null>(null);
-
 	const [contactExpoPushToken, setContactExpoPushToken] = useState("");
 
 	const notificationListener = useRef<Notifications.Subscription>();
 	const responseListener = useRef<Notifications.Subscription>();
 
 	const inputRef = useRef(null);
+	const flatListRef = useRef(null);
 
 	useEffect(() => {
 		database()
@@ -168,7 +178,6 @@ export default function ChatPage() {
 					messages[key].id = key;
 					return messages[key];
 				});
-
 				setContactMessages(data);
 			});
 
@@ -182,7 +191,6 @@ export default function ChatPage() {
 					messages[key].id = key;
 					return messages[key];
 				});
-
 				setUserMessages(data);
 			});
 	}, []);
@@ -207,7 +215,9 @@ export default function ChatPage() {
 		setReplying(null);
 	};
 
-	const sendMsg = async () => {
+	const sendMsg = async (media?: Media) => {
+		Keyboard.dismiss();
+
 		const datetime = new Date().toISOString();
 		const userData = {
 			userID: user?.uid,
@@ -216,25 +226,44 @@ export default function ChatPage() {
 		};
 		if (!user) return;
 
-		if (replying) {
-			database()
-				.ref(`users/${user.uid}/chats/${id}`)
-				.push()
-				.set({
-					message: text,
-					datetime,
-					...userData,
-					replyTo: { user: replying.name, message: replying.message },
-				});
-			cancelReply();
+		if (media) {
+			if (replying) {
+				database()
+					.ref(`users/${user.uid}/chats/${id}`)
+					.push()
+					.set({
+						media,
+						datetime,
+						...userData,
+						replyTo: { user: replying.name, message: replying.message },
+					});
+				cancelReply();
+			} else {
+				database()
+					.ref(`users/${user.uid}/chats/${id}`)
+					.push()
+					.set({ media, datetime, ...userData });
+			}
 		} else {
-			database()
-				.ref(`users/${user.uid}/chats/${id}`)
-				.push()
-				.set({ message: text, datetime, ...userData });
+			if (replying) {
+				database()
+					.ref(`users/${user.uid}/chats/${id}`)
+					.push()
+					.set({
+						message: text,
+						datetime,
+						...userData,
+						replyTo: { user: replying.name, message: replying.message },
+					});
+				cancelReply();
+			} else {
+				database()
+					.ref(`users/${user.uid}/chats/${id}`)
+					.push()
+					.set({ message: text, datetime, ...userData });
+			}
 		}
-
-		await sendPushNotification(contactExpoPushToken, user!.displayName!, text);
+		// await sendPushNotification(contactExpoPushToken, user!.displayName!, text);
 		setText("");
 	};
 
@@ -243,18 +272,41 @@ export default function ChatPage() {
 		setReplying(msg);
 	};
 
+	const pickImage = async () => {
+		// No permissions request is necessary for launching the image library
+		let result = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ImagePicker.MediaTypeOptions.All,
+			allowsEditing: true,
+			aspect: [4, 3],
+			quality: 1,
+		});
+
+		if (!result.canceled) {
+			const img = result.assets[0];
+			const url = "media/" + img.fileName!;
+			const reference = storage().ref(url);
+			await reference.putFile(img.uri);
+			const downloadURL = await reference.getDownloadURL();
+			sendMsg({
+				width: `${img.width}`,
+				height: `${img.height}`,
+				url: downloadURL,
+			});
+		}
+	};
+
 	return (
-		<View className="flex-1 bg-slate-900 p-2">
+		<View className="bg-slate-900 flex-1">
 			<FlatList
-				inverted
+				ref={flatListRef}
+				onContentSizeChange={() => (flatListRef.current as any).scrollToEnd()}
 				className="flex-1"
-				data={[...messages].reverse()}
+				data={messages}
 				keyExtractor={(item) => item.id}
 				renderItem={({ item }) => (
 					<Message reply={replyMsg} contactID={id} message={item} />
 				)}
 			/>
-
 			<View>
 				{!!replying && (
 					<View className="self-start flex-row">
@@ -273,14 +325,20 @@ export default function ChatPage() {
 					</View>
 				)}
 				<View className="flex-row items-center">
+					<Pressable
+						onPress={pickImage}
+						className="bg-slate-600 py-2 pr-2 pl-3"
+					>
+						<Ionicons size={20} color={"white"} name="camera" />
+					</Pressable>
 					<Input
 						ref={inputRef}
-						styles="rounded-l ml-1 flex-1"
+						styles="flex-1"
 						placeholder="Write a message..."
 						value={text}
 						changeText={changeText}
 					/>
-					<Pressable onPress={sendMsg} className="bg-slate-600 p-2 rounded-r">
+					<Pressable onPress={() => sendMsg()} className="bg-slate-600 p-2">
 						<Ionicons name="send" size={20} color={"white"} />
 					</Pressable>
 				</View>

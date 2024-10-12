@@ -8,7 +8,8 @@ type User = {
 
 type Message = {
 	datetime: string;
-	message: string;
+	message?: string;
+	media?: Media;
 	userID: string;
 	id: string;
 	name: string;
@@ -25,3 +26,5 @@ interface FirebaseData {
 	priority?: AndroidNotificationPriority;
 	badge?: number;
 }
+
+type Media = { width: string; height: string; url: string };

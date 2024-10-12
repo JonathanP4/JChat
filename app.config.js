@@ -19,11 +19,27 @@ export default {
 			},
 			googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
 			package: "com.john404.JChat",
+			softwareKeyboardLayoutMode: "resize",
 		},
 		plugins: [
 			"expo-router",
 			"@react-native-firebase/app",
 			"@react-native-firebase/auth",
+			[
+				"expo-image-picker",
+				{
+					photosPermission:
+						"The app accesses your photos to let you share them with your friends.",
+				},
+			],
+			[
+				"expo-camera",
+				{
+					cameraPermission: "Allow JChat to access your camera",
+					microphonePermission: "Allow JChat to access your microphone",
+					recordAudioAndroid: true,
+				},
+			],
 		],
 		experiments: {
 			typedRoutes: true,

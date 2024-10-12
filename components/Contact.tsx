@@ -12,23 +12,13 @@ export function Contact({ data }: { data: User }) {
 	useEffect(() => {
 		if (!user) return;
 		database()
-			.ref(`users/${user.uid}/contacts`)
+			.ref(`users/${user.uid}/contacts/${data.id}`)
 			.on("value", (snap) => {
-				if (snap.exists()) {
-					const contacts = snap.val();
-
-					Object.keys(snap.val()).forEach((k) => {
-						if (contacts[k].id === data.id) {
-							setIsContact(true);
-						}
-					});
-				}
+				setIsContact(snap.exists());
 			});
 	}, []);
 
 	const addOrRemoveContact = () => {
-		setIsContact((s) => !s);
-
 		if (!user) return;
 		database()
 			.ref(`users/${user.uid}/contacts/${data.id}`)

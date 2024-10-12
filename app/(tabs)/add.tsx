@@ -18,7 +18,7 @@ export default function SerachContacts() {
 		if (query.trim().length <= 0) return setResults([]);
 		database()
 			.ref("/users")
-			.on("value", (snap) => {
+			.once("value", (snap) => {
 				const users = snap.val();
 				const res: User[] = [];
 				Object.keys(users).forEach((k) => {
