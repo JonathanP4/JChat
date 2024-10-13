@@ -27,4 +27,10 @@ interface FirebaseData {
 	badge?: number;
 }
 
-type Media = { width: string; height: string; url: string };
+type Media = {
+	width: string;
+	height: string;
+	url: string;
+	filename: string;
+	type: "image" | "video" | "audio" | undefined;
+};

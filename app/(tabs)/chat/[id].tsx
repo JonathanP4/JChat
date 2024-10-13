@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { Audio } from "expo-av";
 import {
 	FlatList,
 	Pressable,
@@ -95,7 +96,6 @@ async function registerForPushNotificationsAsync() {
 export default function ChatPage() {
 	const { id } = useLocalSearchParams();
 	const { user } = Auth();
-
 	const navigation = useNavigation();
 
 	const [contact, setContact] = useState<User>();
@@ -107,10 +107,12 @@ export default function ChatPage() {
 	const [text, setText] = useState("");
 	const [replying, setReplying] = useState<Message | null>(null);
 	const [contactExpoPushToken, setContactExpoPushToken] = useState("");
+	const [loadingImage, setLoadingImage] = useState(false);
+	const [recording, setRecording] = useState<Audio.Recording>();
+	const [permissionResponse, requestPermission] = Audio.usePermissions();
 
 	const notificationListener = useRef<Notifications.Subscription>();
 	const responseListener = useRef<Notifications.Subscription>();
-
 	const inputRef = useRef(null);
 	const flatListRef = useRef(null);
 
@@ -134,6 +136,8 @@ export default function ChatPage() {
 	}, [navigation, contact]);
 
 	useEffect(() => {
+		if (flatListRef.current) (flatListRef.current as any).scrollToEnd();
+		Notifications.dismissAllNotificationsAsync();
 		registerForPushNotificationsAsync();
 
 		notificationListener.current =
@@ -263,7 +267,7 @@ export default function ChatPage() {
 					.set({ message: text, datetime, ...userData });
 			}
 		}
-		// await sendPushNotification(contactExpoPushToken, user!.displayName!, text);
+		await sendPushNotification(contactExpoPushToken, user!.displayName!, text);
 		setText("");
 	};
 
@@ -282,6 +286,7 @@ export default function ChatPage() {
 		});
 
 		if (!result.canceled) {
+			setLoadingImage(true);
 			const img = result.assets[0];
 			const url = "media/" + img.fileName!;
 			const reference = storage().ref(url);
@@ -291,12 +296,69 @@ export default function ChatPage() {
 				width: `${img.width}`,
 				height: `${img.height}`,
 				url: downloadURL,
+				type: img.type,
+				filename: img.fileName!,
 			});
+			setLoadingImage(false);
 		}
+	};
+
+	const startRecording = async () => {
+		try {
+			if (permissionResponse!.status !== "granted") {
+				await requestPermission();
+			}
+			await Audio.setAudioModeAsync({
+				allowsRecordingIOS: true,
+				playsInSilentModeIOS: true,
+			});
+
+			const { recording } = await Audio.Recording.createAsync(
+				Audio.RecordingOptionsPresets.HIGH_QUALITY
+			);
+			setRecording(recording);
+		} catch (err) {
+			console.error("Failed to start recording", err);
+		}
+	};
+
+	const stopRecording = async () => {
+		setRecording(undefined);
+		setLoadingImage(true);
+		await recording!.stopAndUnloadAsync();
+		await Audio.setAudioModeAsync({
+			allowsRecordingIOS: false,
+		});
+		const uri = recording!.getURI()!;
+		const { sound } = await Audio.Sound.createAsync({
+			uri,
+		});
+		let duration = 0;
+		sound
+			?.getStatusAsync()
+			.then((res) => (duration = (res as any).durationMillis));
+		const reference = storage().ref("media/" + uri);
+		await reference.putFile(uri);
+		const url = await reference.getDownloadURL();
+		sendMsg({
+			filename: uri,
+			height: "0",
+			width: `${duration}`,
+			type: "audio",
+			url,
+		});
+		setLoadingImage(false);
 	};
 
 	return (
 		<View className="bg-slate-900 flex-1">
+			{loadingImage && (
+				<View className="absolute left-0 right-0 top-2 flex-row justify-center">
+					<Text className=" bg-slate-500 text-white font-bold z-20 p-2 px-6 rounded-md">
+						Uploading media...
+					</Text>
+				</View>
+			)}
 			<FlatList
 				ref={flatListRef}
 				onContentSizeChange={() => (flatListRef.current as any).scrollToEnd()}
@@ -314,7 +376,8 @@ export default function ChatPage() {
 							numberOfLines={1}
 							className="text-white bg-slate-600 rounded-full py-1 px-4 flex-1"
 						>
-							Replying to: "{replying.message}"
+							Replying to: "
+							{replying.media ? replying.media.filename : replying.message}"
 						</Text>
 						<Pressable
 							onPress={cancelReply}
@@ -326,10 +389,20 @@ export default function ChatPage() {
 				)}
 				<View className="flex-row items-center">
 					<Pressable
+						className="bg-slate-600 py-2 pr-2 pl-3 border border-r-white"
+						onPress={recording ? stopRecording : startRecording}
+					>
+						<Ionicons
+							size={20}
+							color={"white"}
+							name={recording ? "pause" : "mic"}
+						/>
+					</Pressable>
+					<Pressable
 						onPress={pickImage}
 						className="bg-slate-600 py-2 pr-2 pl-3"
 					>
-						<Ionicons size={20} color={"white"} name="camera" />
+						<Ionicons size={20} color={"white"} name="image" />
 					</Pressable>
 					<Input
 						ref={inputRef}
