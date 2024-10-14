@@ -1,11 +1,11 @@
 import { Auth } from "@/store/Auth";
 import { Entypo, FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
-import { Button, Image, Pressable, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Image, Pressable, Text, View } from "react-native";
 import database from "@react-native-firebase/database";
-import Video, { VideoRef } from "react-native-video";
 import storage from "@react-native-firebase/storage";
 import { Audio } from "expo-av";
+import { Video } from "./Video";
 
 type Props = {
 	message: Message;
@@ -15,13 +15,13 @@ type Props = {
 
 export function Message({ message, contactID, reply }: Props) {
 	const { user } = Auth();
-	const videoRef = useRef<VideoRef>(null);
 	const [sound, setSound] = useState<Audio.Sound>();
 	const [playing, setPlaying] = useState(false);
+	const [isFromCurrentUser, setIsFromCurrentUser] = useState(false);
+
 	const time = new Date(message.datetime).toLocaleTimeString("en-us", {
 		timeStyle: "short",
 	});
-	const [isFromCurrentUser, setIsFromCurrentUser] = useState(false);
 
 	useEffect(() => {
 		setIsFromCurrentUser(message.userID === user?.uid);
@@ -72,79 +72,66 @@ export function Message({ message, contactID, reply }: Props) {
 					</Text>
 				</View>
 			)}
-			<View className="flex-row justify-between items-start">
-				<View className="flex-row">
-					<Image
-						className="rounded-full mr-3"
-						width={40}
-						height={40}
-						source={{ uri: message.photo }}
-					/>
-					<View>
-						<Text className="text-white font-bold text-base">
-							{message.name}
-						</Text>
-						{!message.media && (
-							<Text className="text-white">{message.message}</Text>
-						)}
-						{message.media && message.media.type === "image" && (
-							<View className="p-2 bg-slate-500 rounded-md mt-2">
-								<Image
-									width={200}
-									height={200}
-									source={{ uri: message.media.url }}
-								/>
-							</View>
-						)}
-						{message.media && message.media.type === "video" && (
-							<Video
-								ref={videoRef}
-								controls
-								repeat
-								style={{
-									marginTop: 10,
-									width: 260,
-									height: 200,
-								}}
-								source={{
-									uri: message.media.url,
-								}}
-							/>
-						)}
-						{message.media && message.media.type === "audio" && (
-							<View className="flex-row items-center mt-1">
-								<Text className="text-white bg-slate-700 py-1 rounded-full border border-slate-700 w-[70px] pl-3 -mr-6">
-									{`${
-										+message.media!.width / 1000 >= 60
-											? (+message.media!.width / 1000 / 60).toFixed()
-											: (+message.media!.width / 1000).toFixed()
-									}.${((+message.media!.width / 1000) % 60).toFixed()}`}
-									{+message.media.width / 1000 >= 60 ? "m" : "s"}
-								</Text>
-								<Pressable
-									onPress={playing ? stopSound : playSound}
-									className="px-6 py-1 bg-slate-500 rounded-full"
-								>
-									<Ionicons
-										size={20}
-										color={"white"}
-										name={playing ? "pause" : "play"}
-									/>
-								</Pressable>
-							</View>
+			<View className="flex-row items-start">
+				<Image
+					className="rounded-full mr-3"
+					width={40}
+					height={40}
+					source={{ uri: message.photo }}
+				/>
+
+				<View className="flex-row flex-1 justify-between items-center">
+					<Text className="text-white font-bold text-base">{message.name}</Text>
+					<View className="flex-row items-center">
+						<Pressable onPressIn={() => reply(message)} className="px-2">
+							<Entypo size={17} color={"white"} name="reply" />
+						</Pressable>
+						{isFromCurrentUser && (
+							<Pressable className="px-2" onPress={deleteMessage}>
+								<Entypo size={17} color={"red"} name="trash" />
+							</Pressable>
 						)}
 					</View>
 				</View>
-				<View className="flex-row items-center">
-					<Pressable onPressIn={() => reply(message)} className="px-2">
-						<Entypo size={17} color={"white"} name="reply" />
-					</Pressable>
-					{isFromCurrentUser && (
-						<Pressable className="px-2" onPress={deleteMessage}>
-							<Entypo size={17} color={"red"} name="trash" />
+			</View>
+			<View className="ml-12 -mt-2">
+				{!message.media && (
+					<Text className="text-white">{message.message}</Text>
+				)}
+				{message.media && message.media.type === "image" && (
+					<View className="p-2 bg-slate-500 rounded-md mt-2 w-[200px]">
+						<Image
+							width={200}
+							height={200}
+							source={{ uri: message.media.url }}
+						/>
+					</View>
+				)}
+				{message.media && message.media.type === "video" && (
+					<Video videoUrl={message.media.url} />
+				)}
+				{message.media && message.media.type === "audio" && (
+					<View className="flex-row items-center mt-1">
+						<Text className="text-white bg-slate-700 py-1 rounded-full border border-slate-700 w-[70px] pl-3 -mr-6">
+							{`${
+								+message.media!.width / 1000 >= 60
+									? (+message.media!.width / 1000 / 60).toFixed()
+									: (+message.media!.width / 1000).toFixed()
+							}.${((+message.media!.width / 1000) % 60).toFixed()}`}
+							{+message.media.width / 1000 >= 60 ? "m" : "s"}
+						</Text>
+						<Pressable
+							onPress={playing ? stopSound : playSound}
+							className="px-6 py-1 bg-slate-500 rounded-full"
+						>
+							<Ionicons
+								size={20}
+								color={"white"}
+								name={playing ? "pause" : "play"}
+							/>
 						</Pressable>
-					)}
-				</View>
+					</View>
+				)}
 			</View>
 			<Text className="text-slate-400 self-end text-xs">{time}</Text>
 		</View>

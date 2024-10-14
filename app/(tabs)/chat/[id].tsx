@@ -32,14 +32,15 @@ Notifications.setNotificationHandler({
 async function sendPushNotification(
 	expoPushToken: string,
 	username: string,
-	content: string
+	content: string,
+	contactID: string
 ) {
 	const message = {
 		to: expoPushToken,
 		sound: "default",
 		title: `You've got a message from ${username}!`,
 		body: `${content}`,
-		data: { someData: "goes here" },
+		data: { url: `/(tabs)/chat/${contactID}` },
 	};
 
 	await fetch("https://exp.host/--/api/v2/push/send", {
@@ -136,8 +137,6 @@ export default function ChatPage() {
 	}, [navigation, contact]);
 
 	useEffect(() => {
-		if (flatListRef.current) (flatListRef.current as any).scrollToEnd();
-		Notifications.dismissAllNotificationsAsync();
 		registerForPushNotificationsAsync();
 
 		notificationListener.current =
@@ -220,8 +219,6 @@ export default function ChatPage() {
 	};
 
 	const sendMsg = async (media?: Media) => {
-		Keyboard.dismiss();
-
 		const datetime = new Date().toISOString();
 		const userData = {
 			userID: user?.uid,
@@ -267,7 +264,13 @@ export default function ChatPage() {
 					.set({ message: text, datetime, ...userData });
 			}
 		}
-		await sendPushNotification(contactExpoPushToken, user!.displayName!, text);
+		await sendPushNotification(
+			contactExpoPushToken,
+			user!.displayName!,
+			text,
+			user.uid as string
+		);
+		Keyboard.dismiss();
 		setText("");
 	};
 
@@ -292,6 +295,7 @@ export default function ChatPage() {
 			const reference = storage().ref(url);
 			await reference.putFile(img.uri);
 			const downloadURL = await reference.getDownloadURL();
+			setText(img.fileName || "");
 			sendMsg({
 				width: `${img.width}`,
 				height: `${img.height}`,
@@ -340,8 +344,10 @@ export default function ChatPage() {
 		const reference = storage().ref("media/" + uri);
 		await reference.putFile(uri);
 		const url = await reference.getDownloadURL();
+		const filename = uri.slice(-50);
+		setText(filename);
 		sendMsg({
-			filename: uri,
+			filename,
 			height: "0",
 			width: `${duration}`,
 			type: "audio",
@@ -361,9 +367,9 @@ export default function ChatPage() {
 			)}
 			<FlatList
 				ref={flatListRef}
-				onContentSizeChange={() => (flatListRef.current as any).scrollToEnd()}
+				inverted
 				className="flex-1"
-				data={messages}
+				data={[...messages].reverse()}
 				keyExtractor={(item) => item.id}
 				renderItem={({ item }) => (
 					<Message reply={replyMsg} contactID={id} message={item} />

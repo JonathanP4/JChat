@@ -2,7 +2,7 @@ export default {
 	expo: {
 		name: "JChat",
 		slug: "JChat",
-		version: "5.0.0",
+		version: "5.1.0",
 		orientation: "portrait",
 		icon: "./assets/images/icon.png",
 		scheme: "myapp",
@@ -25,6 +25,7 @@ export default {
 			"expo-router",
 			"@react-native-firebase/app",
 			"@react-native-firebase/auth",
+			"expo-video",
 			[
 				"expo-image-picker",
 				{

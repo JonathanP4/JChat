@@ -3,14 +3,15 @@ import { useEffect, useState } from "react";
 import { FlatList, Text, View } from "react-native";
 import database from "@react-native-firebase/database";
 import { Auth } from "@/store/Auth";
+import * as Notifications from "expo-notifications";
 import { SplashScreen } from "expo-router";
 
 export default function HomeScreen() {
-	const [users, setUsers] = useState<User[]>([]);
-	const [loaded, setLoaded] = useState(false);
+	const [users, setUsers] = useState<User[] | null>(null);
 	const { user } = Auth();
 
 	useEffect(() => {
+		Notifications.dismissAllNotificationsAsync();
 		if (!user) return;
 		database()
 			.ref(`/users/${user.uid}/contacts`)
@@ -27,19 +28,16 @@ export default function HomeScreen() {
 				} else {
 					setUsers([]);
 				}
-				setLoaded(true);
 			});
 	}, []);
 
 	useEffect(() => {
-		if (loaded) {
-			SplashScreen.hideAsync();
-		}
-	}, [loaded]);
+		if (users) SplashScreen.hideAsync();
+	}, [users]);
 
 	return (
 		<View className="flex-1 bg-slate-900">
-			{!!users.length ? (
+			{users?.length ? (
 				<FlatList
 					data={users}
 					keyExtractor={(i) => i.id}
