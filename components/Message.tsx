@@ -99,7 +99,7 @@ export function Message({ message, contactID, reply }: Props) {
 					<Text className="text-white">{message.message}</Text>
 				)}
 				{message.media && message.media.type === "image" && (
-					<View className="p-2 bg-slate-500 rounded-md mt-2 w-[200px]">
+					<View className="p-2 bg-slate-500 rounded-md mt-2 w-[208px]">
 						<Image
 							width={200}
 							height={200}
