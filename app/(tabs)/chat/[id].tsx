@@ -121,17 +121,24 @@ export default function ChatPage() {
 		database()
 			.ref(`/users/${id}`)
 			.once("value", (snap) => {
-				if (snap.exists()) setContact(snap.val());
+				setContact(snap.val());
 			});
 		navigation.setOptions({
 			headerTitle: contact?.username || "",
 			headerLeft: () => (
-				<Image
-					className="rounded-full ml-3 -mr-1"
-					width={35}
-					height={35}
-					source={{ uri: contact?.profile_picture || "https://" }}
-				/>
+				<View>
+					<View
+						className={`${
+							contact?.online ? "bg-green-500" : "bg-red-500"
+						} rounded-full w-3 h-3 absolute -right-1 z-20 border border-white`}
+					/>
+					<Image
+						className="rounded-full ml-3 -mr-1"
+						width={35}
+						height={35}
+						source={{ uri: contact?.profile_picture || "https://" }}
+					/>
+				</View>
 			),
 		});
 	}, [navigation, contact]);
@@ -219,6 +226,8 @@ export default function ChatPage() {
 	};
 
 	const sendMsg = async (media?: Media) => {
+		if (text.trim() === "" && !media) return;
+		setText("");
 		const datetime = new Date().toISOString();
 		const userData = {
 			userID: user?.uid,
@@ -270,8 +279,6 @@ export default function ChatPage() {
 			text,
 			user.uid as string
 		);
-		Keyboard.dismiss();
-		setText("");
 	};
 
 	const replyMsg = (msg: Message) => {
@@ -380,7 +387,7 @@ export default function ChatPage() {
 					<View className="self-start flex-row">
 						<Text
 							numberOfLines={1}
-							className="text-white bg-slate-600 rounded-full py-1 px-4 flex-1"
+							className="text-white bg-slate-600 rounded-r-full py-1 px-4 flex-1"
 						>
 							Replying to: "
 							{replying.media ? replying.media.filename : replying.message}"

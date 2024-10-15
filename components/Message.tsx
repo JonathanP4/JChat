@@ -6,6 +6,7 @@ import database from "@react-native-firebase/database";
 import storage from "@react-native-firebase/storage";
 import { Audio } from "expo-av";
 import { Video } from "./Video";
+import { Href, Link } from "expo-router";
 
 type Props = {
 	message: Message;
@@ -65,8 +66,8 @@ export function Message({ message, contactID, reply }: Props) {
 	return (
 		<View className="px-2 pt-3 pb-2 border border-b-slate-700">
 			{message.replyTo && (
-				<View className="bg-slate-500 flex-row">
-					<FontAwesome5 size={17} name="replyd" color={"white"} />
+				<View className="bg-slate-500 flex-row rounded-md">
+					<FontAwesome5 size={20} name="replyd" color={"white"} />
 					<Text numberOfLines={1} className="text-white/70 ml-1">
 						{message.media ? message.media.filename : message.replyTo.message}
 					</Text>
@@ -94,25 +95,39 @@ export function Message({ message, contactID, reply }: Props) {
 					</View>
 				</View>
 			</View>
-			<View className="ml-12 -mt-2">
+			<View className="ml-14 -mt-1 mb-2 relative">
 				{!message.media && (
 					<Text className="text-white">{message.message}</Text>
 				)}
 				{message.media && message.media.type === "image" && (
-					<View className="p-2 bg-slate-500 rounded-md mt-2 w-[208px]">
+					<View className="p-2 bg-slate-500 rounded-md mt-2 self-start">
+						<Link
+							href={message.media.url as Href}
+							className="absolute z-10 top-3 right-3"
+						>
+							<Ionicons size={20} name="link" color={"white"} />
+						</Link>
 						<Image
-							width={200}
+							width={300}
 							height={200}
 							source={{ uri: message.media.url }}
 						/>
 					</View>
 				)}
 				{message.media && message.media.type === "video" && (
-					<Video videoUrl={message.media.url} />
+					<View className="rounded-md self-start">
+						<Link
+							href={message.media.url as Href}
+							className="absolute z-10 top-3 right-3"
+						>
+							<Ionicons size={20} name="link" color={"white"} />
+						</Link>
+						<Video videoUrl={message.media.url} />
+					</View>
 				)}
 				{message.media && message.media.type === "audio" && (
 					<View className="flex-row items-center mt-1">
-						<Text className="text-white bg-slate-700 py-1 rounded-full border border-slate-700 w-[70px] pl-3 -mr-6">
+						<Text className="text-white bg-slate-700 py-1 rounded-l-full border border-slate-700 px-3">
 							{`${
 								+message.media!.width / 1000 >= 60
 									? (+message.media!.width / 1000 / 60).toFixed()
@@ -122,7 +137,7 @@ export function Message({ message, contactID, reply }: Props) {
 						</Text>
 						<Pressable
 							onPress={playing ? stopSound : playSound}
-							className="px-6 py-1 bg-slate-500 rounded-full"
+							className="px-6 py-1 bg-slate-500 rounded-r-full"
 						>
 							<Ionicons
 								size={20}

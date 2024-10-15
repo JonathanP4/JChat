@@ -4,6 +4,7 @@ type User = {
 	profile_picture: string;
 	username: string;
 	expo_push_token: string;
+	online: boolean;
 };
 
 type Message = {

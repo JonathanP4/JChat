@@ -6,23 +6,38 @@ import { Auth } from "@/store/Auth";
 import { router } from "expo-router";
 
 export function Contact({ data }: { data: User }) {
-	const [isContact, setIsContact] = useState(false);
+	const [contact, setContact] = useState<User | null>(null);
+	const [online, setOnline] = useState(false);
 	const { user } = Auth();
 
 	useEffect(() => {
 		if (!user) return;
+
 		database()
 			.ref(`users/${user.uid}/contacts/${data.id}`)
 			.on("value", (snap) => {
-				setIsContact(snap.exists());
+				setContact(snap.val());
+			});
+		database()
+			.ref(`users/${data.id}/online`)
+			.on("value", (snap) => {
+				if (snap.exists()) {
+					setOnline(snap.val());
+				}
 			});
 	}, []);
 
 	const addOrRemoveContact = () => {
 		if (!user) return;
+		const contactData = {
+			id: data.id,
+			profile_picture: data.profile_picture,
+			username: data.username,
+			online: data.online,
+		};
 		database()
 			.ref(`users/${user.uid}/contacts/${data.id}`)
-			.set(isContact ? null : data);
+			.set(contact ? null : contactData);
 	};
 
 	const goToChat = () => {
@@ -32,12 +47,19 @@ export function Contact({ data }: { data: User }) {
 	return (
 		<View className="flex-row justify-between items-center bg-slate-800 border-b border-white/40 p-4">
 			<Pressable onPress={goToChat} className="flex-row items-center flex-1">
-				<Image
-					className="rounded-full"
-					width={60}
-					height={60}
-					source={{ uri: data.profile_picture }}
-				/>
+				<View>
+					<View
+						className={`${
+							online ? "bg-green-500" : "bg-red-500"
+						} rounded-full w-4 h-4 absolute right-0 z-20 border border-white`}
+					/>
+					<Image
+						className="rounded-full"
+						width={60}
+						height={60}
+						source={{ uri: data.profile_picture }}
+					/>
+				</View>
 				<View className="ml-3">
 					<Text className="text-lg text-white font-bold">{data.username}</Text>
 					<Text className="text-white/60">Hello I'm using JChat</Text>
@@ -45,8 +67,8 @@ export function Contact({ data }: { data: User }) {
 			</Pressable>
 			<Pressable onPress={addOrRemoveContact}>
 				<Ionicons
-					name={`${isContact ? "remove-circle-outline" : "add-circle-outline"}`}
-					color={`${isContact ? "#ef4444" : "#ffffff"}`}
+					name={`${contact ? "remove-circle-outline" : "add-circle-outline"}`}
+					color={`${contact ? "#ef4444" : "#ffffff"}`}
 					size={25}
 				/>
 			</Pressable>

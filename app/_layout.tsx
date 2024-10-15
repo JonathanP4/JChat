@@ -58,7 +58,7 @@ export default function RootLayout() {
 	});
 
 	useEffect(() => {
-		if (loaded) async () => await SplashScreen.hideAsync();
+		if (loaded) SplashScreen.hideAsync();
 	}, [loaded]);
 
 	useNotificationObserver();

@@ -32,23 +32,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const [user, setUser] = useState<FirebaseUser | null>();
 
 	async function writeUserOnDb(user: FirebaseUser) {
-		const pushTokenString = (
-			await Notifications.getExpoPushTokenAsync({
-				projectId: Constants.expoConfig!.extra!.eas.projectId,
-			})
-		).data;
-
 		database().ref(`users/${user.uid}`).set({
 			email: user.email,
 			id: user.uid,
 			profile_picture: user.photoURL,
 			username: user.displayName,
-			expo_push_token: pushTokenString,
+			online: true,
 		});
 	}
 
 	// Handle user state changes
-	function onAuthStateChanged(user: any) {
+	async function onAuthStateChanged(user: any) {
+		const pushTokenString = (
+			await Notifications.getExpoPushTokenAsync({
+				projectId: Constants.expoConfig!.extra!.eas.projectId,
+			})
+		).data;
+		database().ref(`users/${user.uid}`).update({
+			expo_push_token: pushTokenString,
+			online: true,
+		});
 		if (user) {
 			setUser(user);
 		} else {
@@ -58,6 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		if (!user) return;
+		database()
+			.ref(`users/${user.uid}`)
+			.onDisconnect()
+			.update({ online: false });
 		database()
 			.ref(`/users/${user.uid}`)
 			.once("value", (snap) => {
