@@ -263,7 +263,10 @@ export default function ChatPage() {
 						message: text,
 						datetime,
 						...userData,
-						replyTo: { user: replying.name, message: replying.message },
+						replyTo: {
+							user: replying.name,
+							message: replying.message || replying.media?.filename,
+						},
 					});
 				cancelReply();
 			} else {

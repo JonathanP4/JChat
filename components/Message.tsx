@@ -64,11 +64,11 @@ export function Message({ message, contactID, reply }: Props) {
 	};
 
 	return (
-		<View className="px-2 pt-3 pb-2 border border-b-slate-700">
+		<View className="px-2 pt-2 pb-2 border border-b-slate-700">
 			{message.replyTo && (
-				<View className="bg-slate-500 flex-row rounded-md">
+				<View className="bg-slate-500 flex-row rounded-md mb-1">
 					<FontAwesome5 size={20} name="replyd" color={"white"} />
-					<Text numberOfLines={1} className="text-white/70 ml-1">
+					<Text numberOfLines={1} className="text-white/70 ml-2">
 						{message.media ? message.media.filename : message.replyTo.message}
 					</Text>
 				</View>
