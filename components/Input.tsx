@@ -21,7 +21,7 @@ export const Input = forwardRef(function Input(
 			value={value}
 			className={`${
 				styles || ""
-			} text-slate-300 py-1 px-2 border border-slate-600 bg-slate-800`}
+			} text-slate-300 py-1 px-2 border border-slate-600 bg-slate-800 text-base`}
 		/>
 	);
 });

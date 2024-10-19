@@ -15,7 +15,7 @@ type Message = {
 	id: string;
 	name: string;
 	photo: string;
-	replyTo?: { user: string; message: string };
+	replying?: { user: string; message?: string; media?: Media };
 };
 
 interface FirebaseData {

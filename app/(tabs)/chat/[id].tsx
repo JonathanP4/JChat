@@ -14,6 +14,7 @@ import {
 	Image,
 	Text,
 	Keyboard,
+	Button,
 } from "react-native";
 import database from "@react-native-firebase/database";
 import * as Device from "expo-device";
@@ -100,12 +101,8 @@ export default function ChatPage() {
 	const navigation = useNavigation();
 
 	const [contact, setContact] = useState<User>();
-	const [contactMessages, setContactMessages] = useState<Message[] | null>(
-		null
-	);
-	const [userMessages, setUserMessages] = useState<Message[] | null>(null);
 	const [messages, setMessages] = useState<Message[]>([]);
-	const [text, setText] = useState("");
+	const [text, setText] = useState<string | null>(null);
 	const [replying, setReplying] = useState<Message | null>(null);
 	const [contactExpoPushToken, setContactExpoPushToken] = useState("");
 	const [loadingImage, setLoadingImage] = useState(false);
@@ -117,6 +114,31 @@ export default function ChatPage() {
 	const inputRef = useRef(null);
 	const flatListRef = useRef(null);
 
+	const clearChat = () => {
+		database().ref(`users/${user?.uid}/chats/${user?.uid}-${id}`).set(null);
+
+		function deleteFolder(path: string) {
+			const ref = storage().ref(path);
+			ref
+				.listAll()
+				.then((dir) => {
+					dir.items.forEach((fileRef) =>
+						deleteFile(ref.fullPath, fileRef.name)
+					);
+					dir.prefixes.forEach((folderRef) => deleteFolder(folderRef.fullPath));
+				})
+				.catch((error) => console.log(error));
+		}
+		deleteFolder(`media/${user?.uid}`);
+
+		function deleteFile(pathToFile: string, fileName: string) {
+			const ref = storage().ref(pathToFile);
+			const childRef = ref.child(fileName);
+			childRef.delete();
+		}
+	};
+
+	// navigation options setter
 	useEffect(() => {
 		database()
 			.ref(`/users/${id}`)
@@ -125,6 +147,14 @@ export default function ChatPage() {
 			});
 		navigation.setOptions({
 			headerTitle: contact?.username || "",
+			headerRight: () => (
+				<Pressable
+					onPress={clearChat}
+					className="absolute top-0 right-0 bg-red-600 px-4 py-1 m-3 rounded-sm"
+				>
+					<Text className="text-white">Clear chat</Text>
+				</Pressable>
+			),
 			headerLeft: () => (
 				<View>
 					<View
@@ -143,6 +173,7 @@ export default function ChatPage() {
 		});
 	}, [navigation, contact]);
 
+	// notification
 	useEffect(() => {
 		registerForPushNotificationsAsync();
 
@@ -166,6 +197,7 @@ export default function ChatPage() {
 		};
 	}, []);
 
+	// fetch messages
 	useEffect(() => {
 		if (!user) return;
 
@@ -178,43 +210,25 @@ export default function ChatPage() {
 				}
 			});
 
-		database()
-			.ref(`/users/${id}/chats/${user.uid}`)
-			.on("value", (snap) => {
-				if (!snap.exists()) return setContactMessages([]);
-
-				const messages = snap.val();
-				const data = Object.keys(messages).map((key) => {
-					messages[key].id = key;
-					return messages[key];
-				});
-				setContactMessages(data);
-			});
-
-		database()
-			.ref(`/users/${user.uid}/chats/${id}`)
-			.on("value", (snap) => {
-				if (!snap.exists()) return setUserMessages([]);
-
-				const messages = snap.val();
-				const data = Object.keys(messages).map((key) => {
-					messages[key].id = key;
-					return messages[key];
-				});
-				setUserMessages(data);
-			});
-	}, []);
-
-	useEffect(() => {
-		if (!Array.isArray(contactMessages) || !Array.isArray(userMessages)) return;
-
-		const allMessages = [...contactMessages, ...userMessages];
-		setMessages(
-			allMessages.sort((a, b) =>
-				a.datetime > b.datetime ? 1 : a.datetime < b.datetime ? -1 : 0
-			)
+		const userChatRef = database().ref(
+			`users/${user.uid}/chats/${user.uid}-${id}`
 		);
-	}, [userMessages, contactMessages]);
+
+		userChatRef.on("value", (snap) => {
+			if (!snap.exists()) return setMessages([]);
+
+			const messages = snap.val();
+			const data = Object.keys(messages).map((key) => {
+				messages[key].id = key;
+				return messages[key];
+			});
+			setMessages(
+				data.sort((a, b) =>
+					a.datetime < b.datetime ? -1 : a.datetime > b.datetime ? 1 : 0
+				)
+			);
+		});
+	}, []);
 
 	const changeText = (t: string) => {
 		setText(t);
@@ -226,8 +240,8 @@ export default function ChatPage() {
 	};
 
 	const sendMsg = async (media?: Media) => {
-		if (text.trim() === "" && !media) return;
-		setText("");
+		if ((!text || text.trim() === "") && !media) return;
+		setText(null);
 		const datetime = new Date().toISOString();
 		const userData = {
 			userID: user?.uid,
@@ -236,51 +250,38 @@ export default function ChatPage() {
 		};
 		if (!user) return;
 
-		if (media) {
-			if (replying) {
-				database()
-					.ref(`users/${user.uid}/chats/${id}`)
-					.push()
-					.set({
-						media,
-						datetime,
-						...userData,
-						replyTo: { user: replying.name, message: replying.message },
-					});
-				cancelReply();
-			} else {
-				database()
-					.ref(`users/${user.uid}/chats/${id}`)
-					.push()
-					.set({ media, datetime, ...userData });
-			}
-		} else {
-			if (replying) {
-				database()
-					.ref(`users/${user.uid}/chats/${id}`)
-					.push()
-					.set({
-						message: text,
-						datetime,
-						...userData,
-						replyTo: {
-							user: replying.name,
-							message: replying.message || replying.media?.filename,
-						},
-					});
-				cancelReply();
-			} else {
-				database()
-					.ref(`users/${user.uid}/chats/${id}`)
-					.push()
-					.set({ message: text, datetime, ...userData });
-			}
-		}
+		const key = database()
+			.ref(`users/${user.uid}/chats/${user.uid}-${id}`)
+			.push().key;
+
+		const userChatRef = database().ref(
+			`users/${user.uid}/chats/${user.uid}-${id}/${key}`
+		);
+		const contactChatRef = database().ref(
+			`users/${id}/chats/${id}-${user.uid}/${key}`
+		);
+
+		userChatRef.set({
+			media,
+			message: text,
+			datetime,
+			...userData,
+			replying,
+		});
+		contactChatRef.set({
+			media,
+			message: text,
+			datetime,
+			...userData,
+			replying,
+		});
+		cancelReply();
+
 		await sendPushNotification(
 			contactExpoPushToken,
-			user!.displayName!,
-			text,
-			user.uid as string
+			user.displayName!,
+			text || media?.filename!,
+			user.uid
 		);
 	};
 
@@ -301,7 +302,7 @@ export default function ChatPage() {
 		if (!result.canceled) {
 			setLoadingImage(true);
 			const img = result.assets[0];
-			const url = "media/" + img.fileName!;
+			const url = `media/${user?.uid}/${img.fileName}`;
 			const reference = storage().ref(url);
 			await reference.putFile(img.uri);
 			const downloadURL = await reference.getDownloadURL();
@@ -351,13 +352,13 @@ export default function ChatPage() {
 		sound
 			?.getStatusAsync()
 			.then((res) => (duration = (res as any).durationMillis));
-		const reference = storage().ref("media/" + uri);
+		const reference = storage().ref(`media/${user?.uid}/${uri}`);
 		await reference.putFile(uri);
 		const url = await reference.getDownloadURL();
 		const filename = uri.slice(-50);
 		setText(filename);
 		sendMsg({
-			filename,
+			filename: uri,
 			height: "0",
 			width: `${duration}`,
 			type: "audio",
@@ -405,11 +406,16 @@ export default function ChatPage() {
 				)}
 				<View className="flex-row items-center">
 					<Pressable
-						className="bg-slate-600 py-2 pr-2 pl-3 border border-r-white"
-						onPress={recording ? stopRecording : startRecording}
+						className={`${
+							recording
+								? "bg-green-800 w-20 h-20 rounded-full m-2"
+								: "bg-slate-600 border border-r-white w-16"
+						} py-2 pr-2 pl-3 flex-row justify-center items-center`}
+						onPressIn={startRecording}
+						onPressOut={stopRecording}
 					>
 						<Ionicons
-							size={20}
+							size={recording ? 30 : 20}
 							color={"white"}
 							name={recording ? "pause" : "mic"}
 						/>
@@ -424,7 +430,7 @@ export default function ChatPage() {
 						ref={inputRef}
 						styles="flex-1"
 						placeholder="Write a message..."
-						value={text}
+						value={text || ""}
 						changeText={changeText}
 					/>
 					<Pressable onPress={() => sendMsg()} className="bg-slate-600 p-2">
