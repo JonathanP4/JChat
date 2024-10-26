@@ -8,6 +8,7 @@ import database from "@react-native-firebase/database";
 import { User as FirebaseUser } from "firebase/auth";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import { router } from "expo-router";
 
 GoogleSignin.configure({
 	webClientId:
@@ -43,19 +44,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	// Handle user state changes
 	async function onAuthStateChanged(user: any) {
-		const pushTokenString = (
-			await Notifications.getExpoPushTokenAsync({
-				projectId: Constants.expoConfig!.extra!.eas.projectId,
-			})
-		).data;
-		database().ref(`users/${user.uid}`).update({
-			expo_push_token: pushTokenString,
-			online: true,
-		});
 		if (user) {
 			setUser(user);
+			const pushTokenString = (
+				await Notifications.getExpoPushTokenAsync({
+					projectId: Constants.expoConfig!.extra!.eas.projectId,
+				})
+			).data;
+			database().ref(`users/${user.uid}`).update({
+				expo_push_token: pushTokenString,
+				online: true,
+			});
 		} else {
 			setUser(null);
+			if (router.canDismiss()) router.dismissAll();
 		}
 	}
 

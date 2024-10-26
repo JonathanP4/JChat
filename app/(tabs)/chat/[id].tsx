@@ -24,7 +24,7 @@ import storage from "@react-native-firebase/storage";
 
 Notifications.setNotificationHandler({
 	handleNotification: async () => ({
-		shouldShowAlert: true,
+		shouldShowAlert: false,
 		shouldPlaySound: false,
 		shouldSetBadge: false,
 	}),
@@ -104,6 +104,7 @@ export default function ChatPage() {
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [text, setText] = useState<string | null>(null);
 	const [replying, setReplying] = useState<Message | null>(null);
+	const [editing, setEditing] = useState<Message | null>(null);
 	const [contactExpoPushToken, setContactExpoPushToken] = useState("");
 	const [loadingImage, setLoadingImage] = useState(false);
 	const [recording, setRecording] = useState<Audio.Recording>();
@@ -111,8 +112,8 @@ export default function ChatPage() {
 
 	const notificationListener = useRef<Notifications.Subscription>();
 	const responseListener = useRef<Notifications.Subscription>();
-	const inputRef = useRef(null);
-	const flatListRef = useRef(null);
+	const inputRef = useRef<any>(null);
+	const flatListRef = useRef<any>(null);
 
 	const clearChat = () => {
 		database().ref(`users/${user?.uid}/chats/${user?.uid}-${id}`).set(null);
@@ -175,6 +176,7 @@ export default function ChatPage() {
 
 	// notification
 	useEffect(() => {
+		Notifications.dismissAllNotificationsAsync();
 		registerForPushNotificationsAsync();
 
 		notificationListener.current =
@@ -235,7 +237,6 @@ export default function ChatPage() {
 	};
 
 	const cancelReply = () => {
-		if (inputRef.current) (inputRef.current as HTMLElement).blur();
 		setReplying(null);
 	};
 
@@ -249,6 +250,23 @@ export default function ChatPage() {
 			photo: user?.photoURL,
 		};
 		if (!user) return;
+
+		if (editing) {
+			const userChatRef = database().ref(
+				`users/${user.uid}/chats/${user.uid}-${id}/${editing.id}`
+			);
+			const contactChatRef = database().ref(
+				`users/${id}/chats/${id}-${user.uid}/${editing.id}`
+			);
+			userChatRef.update({
+				message: text,
+			});
+			contactChatRef.update({
+				message: text,
+			});
+			setEditing(null);
+			return;
+		}
 
 		const key = database()
 			.ref(`users/${user.uid}/chats/${user.uid}-${id}`)
@@ -275,8 +293,8 @@ export default function ChatPage() {
 			...userData,
 			replying,
 		});
-		cancelReply();
-
+		if (replying) cancelReply();
+		if (flatListRef.current) flatListRef.current.scrollToOffset({ offset: 0 });
 		await sendPushNotification(
 			contactExpoPushToken,
 			user.displayName!,
@@ -285,9 +303,25 @@ export default function ChatPage() {
 		);
 	};
 
-	const replyMsg = (msg: Message) => {
+	const editMsg = (index: number, msg: Message) => {
+		if (inputRef.current && flatListRef.current) {
+			const input = inputRef.current;
+			const flatList = flatListRef.current;
+			input.focus();
+			flatList.scrollToIndex({ index });
+			setText(msg.message!);
+			setEditing(msg);
+		}
+	};
+
+	const cancelEdit = () => {
+		setText("");
+		setEditing(null);
+	};
+
+	const replyMsg = (index: number, msg: Message) => {
 		if (inputRef.current) (inputRef.current as HTMLElement).focus();
-		setReplying(msg);
+		setReplying({ ...msg, index });
 	};
 
 	const pickImage = async () => {
@@ -382,8 +416,16 @@ export default function ChatPage() {
 				className="flex-1"
 				data={[...messages].reverse()}
 				keyExtractor={(item) => item.id}
-				renderItem={({ item }) => (
-					<Message reply={replyMsg} contactID={id} message={item} />
+				renderItem={({ item, index }) => (
+					<Message
+						flatListRef={flatListRef}
+						index={index}
+						editing={editing}
+						editMessage={editMsg}
+						reply={replyMsg}
+						contactID={id}
+						message={item}
+					/>
 				)}
 			/>
 			<View>
@@ -394,10 +436,29 @@ export default function ChatPage() {
 							className="text-white bg-slate-600 rounded-r-full py-1 px-4 flex-1"
 						>
 							Replying to: "
-							{replying.media ? replying.media.filename : replying.message}"
+							{replying.media
+								? replying.media.filename.slice(-50)
+								: replying.message}
+							"
 						</Text>
 						<Pressable
 							onPress={cancelReply}
+							className="bg-red-600 rounded-full py-1 px-4 pl-12 -ml-10 -z-10 mr-10"
+						>
+							<Text className="text-white">Cancel</Text>
+						</Pressable>
+					</View>
+				)}
+				{!!editing && (
+					<View className="self-start flex-row">
+						<Text
+							numberOfLines={1}
+							className="text-white bg-slate-600 rounded-r-full py-1 px-4 flex-1"
+						>
+							Editing message: "{editing.message}"
+						</Text>
+						<Pressable
+							onPress={cancelEdit}
 							className="bg-red-600 rounded-full py-1 px-4 pl-12 -ml-10 -z-10 mr-10"
 						>
 							<Text className="text-white">Cancel</Text>

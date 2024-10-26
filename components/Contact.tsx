@@ -8,6 +8,7 @@ import { router } from "expo-router";
 export function Contact({ data }: { data: User }) {
 	const [contact, setContact] = useState<User | null>(null);
 	const [online, setOnline] = useState(false);
+	const [lastMessage, setLastMessage] = useState("");
 	const { user } = Auth();
 
 	useEffect(() => {
@@ -23,6 +24,23 @@ export function Contact({ data }: { data: User }) {
 			.on("value", (snap) => {
 				if (snap.exists()) {
 					setOnline(snap.val());
+				}
+			});
+		database()
+			.ref(`users/${data.id}/chats/${data.id}-${user.uid}`)
+			.on("value", (snap) => {
+				if (snap.exists()) {
+					const messages = snap.val();
+					const data = Object.keys(snap.val()).map((k: string) => messages[k]);
+
+					data.sort((a, b) =>
+						a.datetime < b.datetime ? -1 : a.datetime > b.datetime ? 1 : 0
+					);
+
+					const last: Message = data.pop();
+					setLastMessage(last?.message || last.media?.filename!);
+				} else {
+					setLastMessage("Hi, I'm using JChat!");
 				}
 			});
 	}, []);
@@ -62,7 +80,7 @@ export function Contact({ data }: { data: User }) {
 				</View>
 				<View className="ml-3">
 					<Text className="text-lg text-white font-bold">{data.username}</Text>
-					<Text className="text-white/60">Hello I'm using JChat</Text>
+					<Text className="text-white/60">{lastMessage}</Text>
 				</View>
 			</Pressable>
 			<Pressable onPress={addOrRemoveContact}>

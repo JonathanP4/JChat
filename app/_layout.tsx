@@ -1,7 +1,6 @@
 import { AuthProvider } from "@/store/Auth";
 import { useFonts } from "expo-font";
-import { router, Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
+import { router, SplashScreen, Stack } from "expo-router";
 import "react-native-reanimated";
 import * as TaskManager from "expo-task-manager";
 import * as Notifications from "expo-notifications";
@@ -53,13 +52,9 @@ function useNotificationObserver() {
 }
 
 export default function RootLayout() {
-	const [loaded] = useFonts({
-		SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-	});
-
 	useEffect(() => {
-		if (loaded) SplashScreen.hideAsync();
-	}, [loaded]);
+		Notifications.dismissAllNotificationsAsync();
+	}, []);
 
 	useNotificationObserver();
 

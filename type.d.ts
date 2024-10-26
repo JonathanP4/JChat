@@ -11,11 +11,12 @@ type Message = {
 	datetime: string;
 	message?: string;
 	media?: Media;
+	index?: number;
 	userID: string;
 	id: string;
 	name: string;
 	photo: string;
-	replying?: { user: string; message?: string; media?: Media };
+	replying?: { user: string; message?: string; media?: Media; index: number };
 };
 
 interface FirebaseData {

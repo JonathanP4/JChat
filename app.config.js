@@ -2,7 +2,7 @@ export default {
 	expo: {
 		name: "JChat",
 		slug: "JChat",
-		version: "5.3.0",
+		version: "6.2.0",
 		orientation: "portrait",
 		icon: "./assets/images/icon.png",
 		scheme: "myapp",

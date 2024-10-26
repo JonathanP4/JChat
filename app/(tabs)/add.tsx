@@ -24,7 +24,7 @@ export default function SerachContacts() {
 				Object.keys(users).forEach((k) => {
 					if (users[k].id === user?.uid) return;
 					if (
-						users[k].username.includes(query) ||
+						users[k].username === query ||
 						users[k].id === query ||
 						users[k].email === query
 					)

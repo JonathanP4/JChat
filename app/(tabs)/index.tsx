@@ -1,9 +1,12 @@
 import { Contact } from "@/components/Contact";
 import { useEffect, useState } from "react";
-import { FlatList, Image, Text, View } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import database from "@react-native-firebase/database";
 import { Auth } from "@/store/Auth";
 import * as Notifications from "expo-notifications";
+import { SplashScreen } from "expo-router";
+
+SplashScreen.preventAutoHideAsync();
 
 export default function HomeScreen() {
 	const [users, setUsers] = useState<User[] | null>(null);
@@ -11,7 +14,7 @@ export default function HomeScreen() {
 
 	useEffect(() => {
 		Notifications.dismissAllNotificationsAsync();
-		if (!user) return;
+		if (!user) return setUsers([]);
 		database()
 			.ref(`/users/${user.uid}/contacts`)
 			.on("value", (snapshot) => {
@@ -30,13 +33,9 @@ export default function HomeScreen() {
 			});
 	}, []);
 
-	if (!users) {
-		return (
-			<View className="flex-1 bg-slate-900">
-				<Text className="text-slate-400 text-lg p-4">Loading contacts...</Text>
-			</View>
-		);
-	}
+	useEffect(() => {
+		if (users) SplashScreen.hideAsync();
+	}, [users]);
 
 	return (
 		<View className="flex-1 bg-slate-900">
